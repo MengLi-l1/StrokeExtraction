@@ -4,7 +4,7 @@ A method of stroke extraction for Chinese characters.<br>
 We propose a deep learning-based character stroke extraction method that takes semantic features and prior information of strokes into consideration. 
 Our method mainly consists of three modules. Therefore, the code is built around three modules.
 
-##Dataset 
+## Dataset 
 **The Regular Handwriting Character Stroke Extraction Dataset (RHSEDB):** 
 We construct RHSEDB referring to (Wang, Jiang, and Liu 2022) based on the online
 handwriting dataset CASIA-OLHWDB (Liu et al. 2011), 
