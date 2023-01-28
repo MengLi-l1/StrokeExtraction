@@ -16,7 +16,7 @@ pixels (the size of the stroke image is 256 pixels).
 The RHSEDB is available at [Google Drive](https://drive.google.com/file/d/1Fdj0Yht_ywvnlZJhLYrQzbuTBVRQvDNO/view?usp=share_link). 
 Download the data and unzip it to the *dataset* directory.
 
-##Training
+## Training
 Run 'main_train.py' to train the whole stroke extraction model. Or run 'train_ExtractNet.py', 
 'train_SDNet.py' and 'train_SegNet.py' selectively to train a single module. 
 
