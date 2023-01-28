@@ -3,7 +3,7 @@ from train_SegNet import TrainSegNet
 from train_ExtractNet import TrainExtractNet
 
 class MainTrain():
-    def __init__(self, dataset='CCSEDB'):
+    def __init__(self, dataset='RHSEDB'):
         '''
         Select the dataset to train from ['CCSEDB', 'RHSEDB']
         '''
