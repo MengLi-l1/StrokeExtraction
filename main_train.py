@@ -30,5 +30,5 @@ class MainTrain():
 
 
 if __name__ == '__main__':
-    train_ = MainTrain(dataset='CCSEDB')
+    train_ = MainTrain(dataset='RHSEDB')
     train_.train()

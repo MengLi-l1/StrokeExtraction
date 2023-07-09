@@ -16,71 +16,56 @@ class SDNetLoader(data.Dataset):
     def __init__(self, is_training, dataset_path, is_inference=False):
         self.is_inference = is_inference
         if is_training:
-            self.path = [[os.path.join(dataset_path, 'train', each),
-                          os.path.join(dataset_path, 'train', each[:-16] + '_original_style.npy'),
-                          os.path.join(dataset_path, 'train', each[:-16] + '_kaiti_center.npy'),
-                          os.path.join(dataset_path, 'train', each[:-16] + '_seg.npy'),
-                          os.path.join(dataset_path, 'train', each[:-16] + '_kaiti_single.npy'),
-                          os.path.join(dataset_path, 'train', each[:-16] + '_style_single.npy')]
-                           for each in os.listdir(os.path.join(dataset_path, 'train')) if 'color' in each]
+            self.path = [os.path.join(dataset_path, 'train', each) for each in os.listdir(os.path.join(dataset_path, 'train'))]
         else:
-            self.path = [[os.path.join(dataset_path, 'test', each),
-                          os.path.join(dataset_path, 'test', each[:-16] + '_original_style.npy'),
-                          os.path.join(dataset_path, 'test', each[:-16] + '_kaiti_center.npy'),
-                          os.path.join(dataset_path, 'test', each[:-16] + '_seg.npy'),
-                          os.path.join(dataset_path, 'test', each[:-16] + '_kaiti_single.npy'),
-                          os.path.join(dataset_path, 'test', each[:-16] + '_style_single.npy')]
-                           for each in os.listdir(os.path.join(dataset_path, 'test')) if
-                         'color' in each]
+            self.path = [os.path.join(dataset_path, 'test', each) for each in os.listdir(os.path.join(dataset_path, 'test'))]
         print("number of dataset：%d" % len(self.path))
 
     def get_data(self, item):
         """
         """
-        kaiti_color = np.load(self.path[item][0])  # (3, 256, 256)
-        original_style = np.load(self.path[item][1])  # (1, 256, 256)
-        seg_id = np.load(self.path[item][3])  # (N)
-        kaiti_single = np.load(self.path[item][4])  # (N, 256 256)
-        style_single = np.load(self.path[item][5])  # (N, 256 256)
+        data_frame = np.load(self.path[item])
+        reference_color_image = data_frame['reference_color_image']  # (3, 256, 256)
+        reference_single_image = data_frame['reference_single_image']  # (N, 256 256)
+        reference_single_centroid = data_frame['reference_single_centroid']
+        target_image = data_frame['target_image']  # # (1, 256, 256)
+        target_single_image = data_frame['target_single_image']  # (N, 256 256)
+        stroke_label = data_frame['stroke_label']  # (N)
 
-        stroke_num = kaiti_single.shape[0]
+        stroke_num = reference_single_image.shape[0]
         expand_zeros = []
-        kaiti_single_image_center = []
+        expand_single_centroid = []
 
         for i in range(30):
-            if i >= kaiti_single.shape[0]:
-                expand_zeros.append(np.zeros(shape=(256, 256), dtype=np.float))
-                kaiti_single_image_center.append(np.array([127.5, 127.5]))
+            if i >= reference_single_image.shape[0]:
+                expand_zeros.append(np.zeros(shape=(256, 256), dtype=float))
+                expand_single_centroid.append(np.array([127.5, 127.5]))
 
-            else:
-                point = np.where(kaiti_single[i] > 0.5)
-                # Calculate
-                center = np.array([np.mean(point[1]), np.mean(point[0])])
-                kaiti_single_image_center.append(center)
         expand_zeros = np.array(expand_zeros)
-        kaiti_single = np.concatenate([kaiti_single, expand_zeros], axis=0)
-        style_single = np.concatenate([style_single, expand_zeros], axis=0)
-        kaiti_center = np.array(kaiti_single_image_center)
+        reference_single_image = np.concatenate([reference_single_image, expand_zeros], axis=0)
+        target_single_image = np.concatenate([target_single_image, expand_zeros], axis=0)
 
+        expand_single_centroid = np.array(expand_single_centroid)
+        reference_single_centroid = np.concatenate([reference_single_centroid, expand_single_centroid], axis=0)
 
         if not self.is_inference:
             return {
-                'target_single_stroke': style_single,
-                'reference_single_stroke': kaiti_single,
-                'target_data': original_style,
-                'reference_color': kaiti_color,
+                'target_single_stroke': target_single_image,
+                'reference_single_stroke': reference_single_image,
+                'target_data': target_image,
+                'reference_color': reference_color_image,
                 'stroke_num': stroke_num,
-                'reference_single_stroke_centroid': kaiti_center,
+                'reference_single_stroke_centroid': reference_single_centroid,
             }
         else:
             return {
-                'target_single_stroke': style_single,
-                'reference_single_stroke': kaiti_single,
-                'target_data': original_style,
-                'reference_color': kaiti_color,
+                'target_single_stroke': target_single_image,
+                'reference_single_stroke': reference_single_image,
+                'target_data': target_image,
+                'reference_color': reference_color_image,
                 'stroke_num': stroke_num,
-                'reference_single_stroke_centroid': kaiti_center,
-                'seg_id': seg_id
+                'reference_single_stroke_centroid': reference_single_centroid,
+                'seg_id': stroke_label,
             }
 
 

@@ -70,25 +70,26 @@ class SDNet(nn.Module):
     def get_linear_estimation(self, reference_single_stroke, grids, reference_single_stroke_centroid, inverse=False):
         '''
         Calculate Linear Estimation of Single Stroke Spatial Transformation
-        @param reference_single_stroke: tensor, shape=(1, 256, 256)
-        @param grids: tensor, shape=(256, 256, 2)
-        @param refer_image: tensor, shape=(2)
+        @param reference_single_stroke: tensor, shape=(N, 1, 256, 256)
+        @param grids: tensor, shape=(N, 256, 256, 2)
+        @param refer_image: tensor, shape=(N, 2)
         @return: Liner grid
         '''
-        grid_ = torch.transpose(grids, 1, 2)
-        grid_ = torch.transpose(grid_, 0, 1).unsqueeze(dim=0)
+        grid_ = torch.transpose(grids, 2, 3)
+        grid_ = torch.transpose(grid_, 1, 2)
+        mark = (reference_single_stroke > 0.5).float().cuda()  # （N, 1, 256, 256)
 
-        mark = (reference_single_stroke > 0.5).float().cuda().unsqueeze(dim=0)
         # Mean value of local marked region
-        mean_xy = torch.sum(mark*grid_, dim=[2, 3], keepdim=True)/(torch.sum(mark)+0.0001)
+        mean_xy = torch.sum(mark * grid_, dim=[2, 3], keepdim=True) / (
+                    torch.sum(mark, dim=[2, 3], keepdim=True) + 0.0001)
 
         # Centroid of single reference stroke image
         # X-Px; Y-Py
-        center_refer = torch.reshape(reference_single_stroke_centroid, (2, 1, 1))
-        grid = torch.from_numpy(self.coordinate).cuda().float()
+        center_refer = torch.reshape(reference_single_stroke_centroid, (-1, 2, 1, 1))
+        grid = torch.from_numpy(self.coordinate).cuda().float().unsqueeze(0)
+        grid = grid.repeat(center_refer.size(0), 1, 1, 1)
         center = center_refer
-        grid -= center
-        grid = torch.unsqueeze(grid, dim=1).cuda().float()
+        grid -= center  # (N,2,256,256)
 
         # Mean value of the first derivative
         x_drive = torch.zeros(size=(1, 1, 1, 5)).float().cuda()
@@ -103,12 +104,12 @@ class SDNet(nn.Module):
         y_drive = y_drive.repeat((2, 1, 1, 1))
         dx = F.conv2d(grid_, x_drive, padding=(0, 2), groups=2)
         dy = F.conv2d(grid_, y_drive, padding=(2, 0), groups=2)
-        dx_mean = torch.sum(dx*mark, dim=[2, 3], keepdim=True)/(torch.sum(mark, dim=[0, 1, 2, 3], keepdim=True)+0.0001)
-        dy_mean = torch.sum(dy*mark, dim=[2, 3], keepdim=True)/(torch.sum(mark, dim=[0, 1, 2, 3], keepdim=True)+0.0001)
+        dx_mean = torch.sum(dx * mark, dim=[2, 3], keepdim=True) / (torch.sum(mark, dim=[2, 3], keepdim=True) + 0.0001)
+        dy_mean = torch.sum(dy * mark, dim=[2, 3], keepdim=True) / (torch.sum(mark, dim=[2, 3], keepdim=True) + 0.0001)
 
         # Calculate Linear Estimation of Single Stroke Spatial Transformation
-        dx_value = dx_mean*grid[:1]
-        dy_value = dy_mean*grid[1:]
+        dx_value = dx_mean * grid[:, :1]
+        dy_value = dy_mean * grid[:, 1:]
         linear_grid_ = mean_xy + dx_value + dy_value
 
         # if in the model inference, get the inverse grid

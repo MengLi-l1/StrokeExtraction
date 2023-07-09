@@ -14,9 +14,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 
-
-
-
 class TrainSDNet():
     '''
         train SDNet with the Train-Dataset
@@ -105,34 +102,29 @@ class TrainSDNet():
         '''
         In Model Training and Testing,
         calculate local linear estimation transformation and transformed single target stroke.
-        And, calculate content loss between transformed single target stroke and reference single stroke
+        And, calculate content loss between transformed single target stroke and reference single stroke.
         '''
         content_loss = torch.Tensor([0]).float().cuda()
 
         linear_tran_batch = []
         for i in range(self.batch_size):
-            linear_tran_all = []
-            loss__ = torch.Tensor([0]).float().cuda()
-            num = 0
-            for j in range(int(stroke_num[i])):
-                target_stroke_single_ = target_single_stroke[i][j].unsqueeze(0).unsqueeze(0)
-                reference_stroke_single_ = reference_single_stroke[i][j].unsqueeze(0).unsqueeze(0)
-                grid_ = grid_for_linear[i].unsqueeze(0)
-                affine_grid = self.sd_net.get_linear_estimation(reference_stroke_single_[0], grid_[0], reference_single_stroke_centroid[i][j])
-                affine_tran = F.grid_sample(target_stroke_single_, affine_grid)
-                c_loss_ = self.content_loss(affine_tran, reference_stroke_single_)
-                linear_tran_all.append(affine_tran)
-                num += 1
-                loss__ += c_loss_
-            if num > 0:
-                content_loss = content_loss + loss__ / num
-            affine_tran_whole_ = torch.clip(torch.sum(torch.cat(linear_tran_all, dim=1), dim=1, keepdim=True), 0, 1)
+            target_stroke_ = target_single_stroke[i, :int(stroke_num[i])].unsqueeze(1)
+            reference_stroke_ = reference_single_stroke[i, :int(stroke_num[i])].unsqueeze(1)
+            grid_ = grid_for_linear[i].unsqueeze(0)
+            grid_ = grid_.repeat(target_stroke_.size(0), 1, 1, 1)
+
+            affine_grid = self.sd_net.get_linear_estimation(reference_stroke_, grid_,
+                                                             reference_single_stroke_centroid[i, :int(stroke_num[i])])
+            affine_tran = F.grid_sample(target_stroke_, affine_grid)
+            c_loss_ = self.content_loss(affine_tran, reference_stroke_)
+            content_loss = content_loss + c_loss_
+            affine_tran_whole_ = torch.clip(torch.sum(affine_tran, dim=0, keepdim=True), 0, 1)
             linear_tran_batch.append(affine_tran_whole_)
         linear_tran_batch = torch.cat(linear_tran_batch, dim=0)
         return content_loss / self.batch_size, linear_tran_batch
 
     def __calculate_linear_transformation_inference(self, reference_single_stroke, target_single_stroke, grid_for_linear, stroke_num,
-                                                   reference_single_stroke_centroid, seg_id):
+                                                   reference_single_stroke_centroid, stroke_label):
         '''
         In Model Inference,
         calculate inverse local linear estimation transformation and transformed single reference stroke.
@@ -153,7 +145,7 @@ class TrainSDNet():
 
             linear_tran_whole = self.__get_color_image(
                 torch.cat(linear_tran_whole, dim=1).squeeze(0).detach().to('cpu').numpy()
-                , seg_id[i, :int(stroke_num[i])].detach().to('cpu').numpy())
+                , stroke_label[i, :int(stroke_num[i])].detach().to('cpu').numpy())
 
             transformed_reference_color.append(linear_tran_whole)
         transformed_reference_color = torch.cat(transformed_reference_color, dim=0)
@@ -286,15 +278,15 @@ class TrainSDNet():
                 loss_value[3], time.time() - start_time))
         return loss_value, loss_name
 
-    def __get_color_image(self, single_image, seg_id):
+    def __get_color_image(self, single_image, stroke_label):
         color_kaiti = np.zeros(shape=(256, 256, 3))
         for i in range(single_image.shape[0]):
-            color_kaiti = apply_stroke(color_kaiti, single_image[i], seg_colors[seg_id[i]])
+            color_kaiti = apply_stroke(color_kaiti, single_image[i], seg_colors[stroke_label[i]])
         color_kaiti = np.transpose(color_kaiti, [2, 0, 1])
         return torch.from_numpy(color_kaiti).float().cuda().unsqueeze(0)
 
     def __save_data(self, save_path, save_num, transformed_reference_color, target_data,
-                    transformed_reference_single_stroke, target_single_stroke, seg_id):
+                    transformed_reference_single_stroke, target_single_stroke, stroke_label):
         '''
         save prior information and other data for training SegNet and ExtractNet
         '''
@@ -308,10 +300,10 @@ class TrainSDNet():
         np.save(os.path.join(save_path, str(save_num) + '_style.npy'), save_data > 0.5)
 
         single_tran_save = transformed_reference_single_stroke[0].detach().to('cpu').numpy()
-        seg_id_save = seg_id.detach().to('cpu').numpy()
+        stroke_label_save = stroke_label.detach().to('cpu').numpy()
         np.save(os.path.join(save_path, str(save_num) + '_single.npy'),
                 single_tran_save > 0.5)
-        np.save(os.path.join(save_path, str(save_num) + '_seg.npy'), seg_id_save)
+        np.save(os.path.join(save_path, str(save_num) + '_seg.npy'), stroke_label_save)
         style_single_image_save = target_single_stroke.detach().to('cpu').numpy()
         np.save(os.path.join(save_path, str(save_num) + '_style_single.npy'),
                 style_single_image_save > 0.5)
@@ -351,7 +343,7 @@ class TrainSDNet():
             reference_color = batch_sample['reference_color'].cuda().float()
             stroke_num = batch_sample['stroke_num'].cuda().float()
             reference_single_stroke_centroid = batch_sample['reference_single_stroke_centroid'].cuda().float()
-            seg_id = batch_sample['seg_id'].cuda().long()
+            stroke_label = batch_sample['stroke_label'].cuda().long()
 
             transformed_target_data, flow_global, grid_for_linear = self.sd_net.get_two_registration_field(
                 reference_color, target_data)
@@ -360,7 +352,7 @@ class TrainSDNet():
                 reference_single_stroke,
                 target_single_stroke,
                 grid_for_linear, stroke_num,
-                reference_single_stroke_centroid, seg_id)
+                reference_single_stroke_centroid, stroke_label)
 
             stroke_num = int(stroke_num[0])
             transformed_single_reference_stroke_ = transformed_single_reference_stroke[0].squeeze(1)
@@ -372,7 +364,7 @@ class TrainSDNet():
 
             self.__save_data(save_train_dataset_path, j, transformed_reference_color,
                              target_data, transformed_single_reference_stroke, target_single_stroke_,
-                             seg_id[0, :stroke_num])
+                             stroke_label[0, :stroke_num])
 
         # save qualitative result
         loss_value = np.mean(np.array(qualitative_result_list), axis=0)
@@ -393,7 +385,7 @@ class TrainSDNet():
             reference_color = batch_sample['reference_color'].cuda().float()
             stroke_num = batch_sample['stroke_num'].cuda().float()
             reference_single_stroke_centroid = batch_sample['reference_single_stroke_centroid'].cuda().float()
-            seg_id = batch_sample['seg_id'].cuda().long()
+            stroke_label = batch_sample['stroke_label'].cuda().long()
 
             transformed_target_data, flow_global, grid_for_linear = self.sd_net.get_two_registration_field(
                 reference_color, target_data)
@@ -401,7 +393,7 @@ class TrainSDNet():
             transformed_reference_color, transformed_single_reference_stroke = self.__calculate_linear_transformation_inference(reference_single_stroke,
                                                                                                   target_single_stroke,
                                                                             grid_for_linear, stroke_num,
-                                                                            reference_single_stroke_centroid,seg_id)
+                                                                            reference_single_stroke_centroid,stroke_label)
 
 
             stroke_num = int(stroke_num[0])
@@ -412,7 +404,7 @@ class TrainSDNet():
             qualitative_result_list.append([mDis, mBiou])
 
             self.__save_data(save_test_dataset_path, j, transformed_reference_color,
-                             target_data, transformed_single_reference_stroke, target_single_stroke_, seg_id[0, :stroke_num])
+                             target_data, transformed_single_reference_stroke, target_single_stroke_, stroke_label[0, :stroke_num])
 
         # save qualitative result
         loss_value = np.mean(np.array(qualitative_result_list), axis=0)
@@ -423,7 +415,7 @@ class TrainSDNet():
 
 if __name__ == '__main__':
     model = TrainSDNet(save_path='out/SDNet', dataset='CCSEDB')
-    model.train_model(epochs=40, init_learning_rate=0.0001, batch_size=8, dataset=r'dataset\CCSEDB')
+    model.train_model(epochs=40, init_learning_rate=0.0001, batch_size=8)
     model.calculate_prior_information_and_qualitative('dataset_forSegNet_ExtractNet_CCSEDB')
 
 
