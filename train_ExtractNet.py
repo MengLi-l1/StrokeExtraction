@@ -382,10 +382,12 @@ class TrainExtractNet():
                 extract_result = F.sigmoid(extract_out).detach() > 0.5
 
                 #  Restore strokes to their original size
-                # Calculate mIOUm and mIOUum
+                # Calculate mIOUm
                 #  Restore strokes to their original size
                 extract_result, label = self.__to_original_stroke(extract_result, label_batch, cut_box_list_batch)
                 mIOUm = get_iou_with_matching(extract_result, label)
+
+                # mIOUum is not need to be calculated in the Training
 
 
                 loss.backward()

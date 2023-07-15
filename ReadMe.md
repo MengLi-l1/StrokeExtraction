@@ -13,7 +13,7 @@ by 17 writers in total. Each record of data in RHSEDB contains a target image an
 some single stroke label images of the target image arranged in reference stroke order. 
 In these images, writing track of the stroke is normalized to a width of 6
 pixels (the size of the stroke image is 256 pixels).  
-The RHSEDB is available at [Google Drive](https://drive.google.com/file/d/1Ci3GySYbDHjubgkgMj_cOgtIqHEuG8JX/view?usp=drive_link). 
+The RHSEDB is available at [Google Drive](https://drive.google.com/file/d/1akn5zMDhwNkYl3iExiizXKlPweCc10-_/view?usp=drive_link). 
 Download the data and unzip, the path looks like:``./dataset/RHSEDB``.
 
 ## Training

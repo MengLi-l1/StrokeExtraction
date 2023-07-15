@@ -105,11 +105,21 @@ def get_centroid_box_qualitative_result(kaiti, style):
         kaiti_center, kaiti_box = centroid_box(kaiti[i])
         style_center, style_box = centroid_box(style[i])
         distance = np.sqrt(np.sum((kaiti_center-style_center)**2))
-        or_box = (max(kaiti_box[1], style_box[1]) - min(kaiti_box[0], style_box[0]))* \
-                 (max(kaiti_box[3], style_box[3]) - min(kaiti_box[2], style_box[2]))
-        and_box = (min(kaiti_box[1], style_box[1]) - max(kaiti_box[0], style_box[0])) * \
-                 (min(kaiti_box[3], style_box[3]) - max(kaiti_box[2], style_box[2]))
-        iou = and_box/or_box
+        xmin1, xmax1, ymin1, ymax1 = kaiti_box
+        xmin2, xmax2, ymin2, ymax2 = style_box
+
+        s1 = (xmax1 - xmin1) * (ymax1 - ymin1)
+        s2 = (xmax2 - xmin2) * (ymax2 - ymin2)
+
+        xmin = max(xmin1, xmin2)
+        ymin = max(ymin1, ymin2)
+        xmax = min(xmax1, xmax2)
+        ymax = min(ymax1, ymax2)
+
+        w = max(0, xmax - xmin)
+        h = max(0, ymax - ymin)
+        area = w * h
+        iou = area / (s1 + s2 - area)
         mean_distance.append(distance)
         mean_box_iou.append(iou)
     mDis = np.mean(np.array(mean_distance))
@@ -149,7 +159,7 @@ def get_iou_with_matching(out, label):
     '''
     ious = []
     for index, each in enumerate(out):
-        iou = np.sum((each + label) > 1.5) / (np.sum((each + label) > 0.5) + 0.00001)
+        iou = np.sum((each + label[index]) > 1.5) / (np.sum((each + label[index]) > 0.5) + 0.00001)
         ious.append(iou)
     return np.mean(np.array(ious))
 
