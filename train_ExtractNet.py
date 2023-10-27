@@ -117,9 +117,6 @@ class TrainExtractNet():
         self.Model_path = os.path.join(save_path, 'model')
         self.Out_path_loss = os.path.join(save_path, 'loss')
         self.Out_path_val = os.path.join(save_path, 'val')
-        self.Out_path_train_stage2 = os.path.join(save_path, 'train_stage2')
-        self.Out_path_test_stage2 = os.path.join(save_path, 'test_stage2')
-        self.Out_path_loss_stage2 = os.path.join(save_path, 'loss_stage2')
         if not os.path.exists(self.Model_path):
             os.makedirs(self.Model_path)
         if not os.path.exists(self.Out_path_train):
@@ -173,7 +170,7 @@ class TrainExtractNet():
                 train_data = [x[index] for x in train_history_loss]
                 test_data = [x[index] for x in test_history_loss]
                 self.__plot_loss(name+'stage2.png', [train_data, test_data],
-                               legend=['train', 'test'], folder_name=self.Out_path_loss_stage2)
+                               legend=['train', 'test'], folder_name=self.Out_path_loss)
             # save models
             self.save_model_parameter(i)
             if (i+1)%5 == 0:

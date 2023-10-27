@@ -65,7 +65,7 @@ class SDNetLoader(data.Dataset):
                 'reference_color': reference_color_image,
                 'stroke_num': stroke_num,
                 'reference_single_stroke_centroid': reference_single_centroid,
-                'seg_id': stroke_label,
+                'stroke_label': stroke_label,
             }
 
 

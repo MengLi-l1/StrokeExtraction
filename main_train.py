@@ -27,8 +27,6 @@ class MainTrain():
         print('ExtractNet training has been completed')
 
 
-
-
 if __name__ == '__main__':
     train_ = MainTrain(dataset='RHSEDB')
     train_.train()

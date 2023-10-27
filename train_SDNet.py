@@ -38,7 +38,6 @@ class TrainSDNet():
 
         # ContentLoss
         self.content_loss = ContentLoss().cuda()
-
         # Net
         self.sd_net = SDNet()
         self.sd_net.cuda()
@@ -137,7 +136,7 @@ class TrainSDNet():
                 target_stroke_single_ = target_single_stroke[i][j].unsqueeze(0).unsqueeze(0)
                 reference_single_stroke_ = reference_single_stroke[i][j].unsqueeze(0).unsqueeze(0)
                 grid_ = grid_for_linear[i].unsqueeze(0)
-                linear_grid = self.sd_net.get_linear_estimation(reference_single_stroke_[0], grid_[0],
+                linear_grid = self.sd_net.get_linear_estimation(reference_single_stroke_, grid_,
                                                                 reference_single_stroke_centroid[i][j], inverse=True)
                 linear_tran = F.grid_sample(reference_single_stroke_, linear_grid)
                 linear_tran_whole.append(linear_tran)
